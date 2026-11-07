@@ -1,5 +1,6 @@
 package ru.rachkov.MySecondTestAppSpringBoot.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import ru.rachkov.MySecondTestAppSpringBoot.model.Request;
 import ru.rachkov.MySecondTestAppSpringBoot.model.Response;
 import ru.rachkov.MySecondTestAppSpringBoot.service.ValidationService;
 import ru.rachkov.MySecondTestAppSpringBoot.util.DateTimeUtil;
+import ru.rachkov.MySecondTestAppSpringBoot.filter.RequestReceivedTimeFilter;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -34,8 +36,20 @@ public class MyController {
 
     @PostMapping(value = "/feedback")
     public ResponseEntity<Response> feedback(@Valid @RequestBody Request request,
-                                              BindingResult bindingResult) {
+                                              BindingResult bindingResult, HttpServletRequest httpRequest) {
 
+        long receivedAt = RequestReceivedTimeFilter.receivedAt(httpRequest);
+        if (request.getService1ReceivedAt() != null) {
+            long elapsedMillis = receivedAt - request.getService1ReceivedAt();
+            log.info("Request uid={}: Service 1 -> Service 2 elapsed time: {} ms",
+                    request.getUid(), elapsedMillis);
+            if (elapsedMillis < 0) {
+                log.warn("Negative elapsed time for uid={}; check clock synchronization between services",
+                        request.getUid());
+            }
+        } else {
+            log.info("Request uid={}: elapsed time unavailable (service1ReceivedAt is missing)", request.getUid());
+        }
         log.info("request: {}", request);
 
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
